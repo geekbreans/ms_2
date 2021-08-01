@@ -3,12 +3,34 @@ from time import sleep
 from bs4 import BeautifulSoup as bs
 import requests
 import csv
+import pymongo
+
+rsc = 200
+i = 0
+data ={}
+client = pymongo.MongoClient("mongodb://localhost:27017")
 
 headers = {
     'User-Agent': 'Mozilla/5.0 '
                   '(Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
                   '(KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36'
     }
+
+def _save( data):
+    collection = client["gb_hh"]["hh_parse"]
+    collection.insert_one(data)
+def _finddata( value):
+    collection = client["gb_hh"]["hh_parse"]
+    collections = collection.find(
+        {
+            'minsalary': {
+                '$gt': value
+            }
+        }
+    )
+    for icol in collections:
+        print(icol)
+
 
 
 def getsalary( word):
@@ -40,10 +62,8 @@ def getsalary( word):
 
 
 
+# _finddata(160000)
 
-rsc = 200
-i = 0
-data =[]
 while rsc < 300:
     url =f'https://hh.ru/search/vacancy?area=1&fromSearchLine=true&st=searchVacancy&text=bigdata&page= {i}'
     response = requests.get(url, headers=headers)
@@ -65,20 +85,41 @@ while rsc < 300:
         print (vacancyurl, position, salary, companyname, placecompany)
         print(type(salary))
         print(minsalary, maxsalary, currency)
-        data.append([
-            ['companyname ', companyname],
-            ['position ', position],
-            ['minsalary ', minsalary],
-            ['maxsalary ', maxsalary],
-            ['currency ', currency],
-            ['vacancyurl ', vacancyurl],
-            ['placecompany ', placecompany]
-            ]
-            )
+        data = {
+            "companyname": companyname,
+            "position": position,
+            "minsalary": minsalary,
+            "maxsalary": maxsalary,
+            "currency":currency,
+            'vacancyurl': vacancyurl,
+            'placecompany ': placecompany
+        }
+        collection = client["gb_hh"]["hh_parse"]
+        positions_collections = collection.find_one({"vacancyurl":vacancyurl})
+        #уникальным считается адрес вакансии и если нет такого адреса проводим запись
+        if positions_collections is None:
+            _save(data)
+
+
+        # data.append([
+        #     ['companyname ', companyname],
+        #     ['position ', position],
+        #     ['minsalary ', minsalary],
+        #     ['maxsalary ', maxsalary],
+        #     ['currency ', currency],
+        #     ['vacancyurl ', vacancyurl],
+        #     ['placecompany ', placecompany]
+        #     ]
+        #     )
+        # _save(data)
+        # _finddata(100000)
+
     sleep(0.5)
-with open( "vacancys.csv", "w", newline="", encoding= 'utf8') as file:
-    writer = csv.writer(file,  delimiter=';')
-    writer.writerows(data)
+
+_finddata(100000)
+
+
+
 
 
 
